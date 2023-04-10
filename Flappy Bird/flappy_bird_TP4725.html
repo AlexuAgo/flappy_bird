@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Flappy Bird!</title>
+    <style>
+      canvas{
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 600px;
+        height: 400px;
+        border: 2px solid black;
+        
+     }
+
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas> 
+    <script>
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        //canvas
+        canvas.width = 600;
+        canvas.height = 400;
+        
+        let spacePressed = false;       //if space pressed 
+        let angle = 0;                  //to go up and down
+        let frame = 0;                  //counts frame
+        let score = 0;                  //score
+        let gameSpeed = 2;              
+        const obstaclesArray = [];      //pipe array
+
+        //sprites
+        const pipeSpriteUp = new Image();
+        pipeSpriteUp.src = 'pipe_up.png';
+
+        const pipeSpriteDown = new Image();
+        pipeSpriteDown.src = 'pipe.png';
+
+        const birdSprite = new Image();
+        birdSprite.src = 'bird.png';
+        
+        const background = new Image();
+        background.src = 'bg.png';
+
+        //background
+        const BG = {
+            x1: 0,
+            x2: canvas.width,
+            y: 0,
+            width: canvas.width,
+            height: canvas.height
+        }
+
+        //making background continuous
+        function handleBackground()
+        {
+            
+            if (BG.x1 <= -BG.width +gameSpeed) BG.x1 = BG.width;
+            else BG.x1 -= gameSpeed;
+            if (BG.x2 <= -BG.width + gameSpeed) BG.x2 = BG.width;
+            else (BG.x2 -= gameSpeed);
+            ctx.drawImage(background, BG.x1, BG.y, BG.width, BG.height);
+            ctx.drawImage(background, BG.x2, BG.y, BG.width, BG.height);
+            
+        }
+        //pipes class
+        class Obstacle {
+            constructor()
+            {
+                this.top = (Math.random()* canvas.height/3) + 20;   //upper pipe
+                this.bottom = (Math.random() * canvas.height/3) + 20;//lower pipe
+                this.x = canvas.width;              //x coordinate
+                this.originalWidth = 81;            //sprite original width
+                this.width = 40;                    //width pipe
+                this.counted = false;               //count score
+               
+            }
+
+            draw()
+            {
+               
+                //drawing lower pipe
+                ctx.drawImage(pipeSpriteDown, this.x, 0, this.width,this.top);
+                //drawing upper pipe
+                ctx.drawImage(pipeSpriteUp, this.x, canvas.height - this.bottom, this.width, this.bottom);
+            }
+
+            update()
+            {
+                this.x -= gameSpeed;
+                if (!this.counted && this.x < bird.x)   //calculating score if bird passed pipe
+                {
+                    score++;
+                    this.counted = true;
+                }
+                this.draw();
+            }
+        }
+
+        class Bird {
+            constructor()
+            {
+                this.x = 150;               //bird.x
+                this.y = 200;               //bird.y
+                this.vy = 0;                //y velocity
+                this.originalWidthz = 800;
+                this.originalHeightz = 814;
+                this.width = this.originalWidthz / 20;
+                this.height = this.originalHeightz / 20;
+                this.weight = 1;            //gravity
+                this.frameX = 0;
+            }
+            update(){
+                
+                let curve = Math.sin(angle) * 20;
+                //limits
+                if (this.y > canvas.height - (this.height* 2.5) + curve){
+                    this.y = canvas.height - (this.height* 2.5) + curve ;
+                    this.vy = 0;
+                }else{
+                    //making the bird fall faster on higher height with the help of vy
+                    this.vy += this.weight;
+                    this.vy *= 0.9;
+                    this.y += this.vy;
+                }
+                //limit
+                if (this.y <this.height)
+                {
+                    this.y = this.height;
+                    this.vy = 0;
+                }
+                //flap wings if space pressed and bird.y not exceeding limit
+                if (spacePressed && this.y >this.height ) this.flap();
+                
+            }
+
+            draw(){
+                //drawing sprite
+                ctx.drawImage(birdSprite, this.frameX * this.originalWidthz, 0, this.originalWidthz,  this.originalWidthz, this.x - 20, this.y - 12 , this.width * 1.6, this.height * 1.6);
+            }
+            flap()
+            {
+                this.vy -= 2;
+                if (this.frameX >= 7) this.frameX = 0;
+                else if (frame%3 ===0) this.frameX++;
+            }
+        }
+        
+        const bird = new Bird();
+
+        function handleObstacles(){
+            if (frame%150 === 0){
+                obstaclesArray.unshift(new Obstacle); //creating new pipe
+            }
+            for (let i = 0; i < obstaclesArray.length; i++){
+                obstaclesArray[i].update();
+            }
+            if(obstaclesArray.length > 20){
+                //deletes pipe from array when their count is higher than 20
+                obstaclesArray.pop(obstaclesArray[0]); 
+            }
+}   
+
+        function handleCollisions(){
+            for (let i = 0; i <obstaclesArray.length; i++)
+            {
+                if(bird.x < obstaclesArray[i].x + obstaclesArray[i].width &&
+                    bird.x + bird.width > obstaclesArray[i].x &&
+                    ((bird.y < 0 + obstaclesArray[i].top && bird.y + bird.height > 0) || 
+                    (bird.y > canvas.height - obstaclesArray[i].bottom &&
+                    bird.y + bird.height < canvas.height))){
+                        ctx.font = '25px Georgia';
+                        ctx.fillStyle = 'black';
+                        ctx.fillText('Game Over, your score is ' + score, 160, canvas.height/2 - 10);
+                        return true;
+                    }
+            }
+        }
+
+        
+
+        function animate()
+        {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); //clear canvas
+            handleBackground();
+            handleObstacles();
+            bird.update();              //calculates birds position and speed
+            bird.draw();                //draws bird
+            ctx.fillStyle = "black";
+            ctx.font = "60px Georgia";
+            ctx.strokeText(score, 450, 70);
+            ctx.fillText(score, 450, 70);
+            handleCollisions();
+            if (handleCollisions()) return;
+            requestAnimationFrame(animate);
+            angle+=0.12;
+            frame++;
+        }
+
+        
+        
+        
+        
+        window.addEventListener('keydown', function(e){
+            if (e.code === 'Space') spacePressed = true;
+            
+        });
+        
+        window.addEventListener('keyup', function(e){
+            if (e.code === 'Space') spacePressed = false;
+            bird.frameX = 0;
+        });
+        
+
+        animate();
+        
+
+        
+
+        </script>
+</body>
+
+</html>     
